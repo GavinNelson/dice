@@ -26,7 +26,7 @@ void loop(void) {
   int ti = getTypeIndex();
   type = types[ti];
   u8g2.clearBuffer();
-  if (digitalRead(2) == LOW) {
+  if (digitalRead(2) == HIGH) {
     digitalWrite(13, HIGH);
     rollType = type;
     u8g2.clearBuffer();
@@ -102,7 +102,7 @@ int roll(int type) {
         u8g2.sendBuffer();
         //delay((c - size) * -1);
         delay(1000/60);
-        if (digitalRead(2) == LOW) {
+        if (digitalRead(2) == HIGH) {
           c += speed;
         }
         if (c == 0) {
