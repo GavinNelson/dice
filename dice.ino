@@ -15,6 +15,7 @@ int rollType = 20;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 18,19); // pin remapping with ESP8266 HW I2C
 
 void setup(void) {
+  Serial.begin(9600);
   u8g2.begin();
   randomSeed(analogRead(0));
   u8g2.setFontPosCenter();
@@ -107,6 +108,8 @@ int roll(int type) {
         }
         if (c == 0) {
           delay(1000);
+          Serial.print(num);
+          Serial.print(" ");
           for (int f = 0; f<4;f++) {
 //            u8g2.clearBuffer();
 //            u8g2.sendBuffer();
