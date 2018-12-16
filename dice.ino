@@ -1,6 +1,4 @@
-#include <Arduino.h>
 #include <U8g2lib.h>
-#include <SPI.h>
 #include <Wire.h>
 
 int i = 2;
@@ -9,10 +7,10 @@ int c = 10;
 int result = 0;
 int type = 20;
 int speed = 4;
-int types[5] = {20,12,8,6,4};
+int types[7] = {20,12,10,100,8,6,4};
 int rollType = 20;
 
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 18,19); // pin remapping with ESP8266 HW I2C
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, 5, 2,0); // pin remapping with ESP8266 HW I2C
 
 void setup(void) {
   Serial.begin(9600);
@@ -43,13 +41,13 @@ void loop(void) {
 
 int getTypeIndex() {
   int i = analogRead(20);
-  return map(i, 0, 1024, 0, 4);
+  return map(i, 0, 1024, 0, 6);
 }
 
 void drawSelect(int pos) {
-  u8g2.setFont(u8g2_font_6x13_tf);
-  for (int i = 0; i <= 4; i++) {
-    u8g2.setCursor(70, 9 + (10 * i));
+  u8g2.setFont(u8g2_font_t0_11_tr);
+  for (int i = 0; i <= 6; i++) {
+    u8g2.setCursor(70, 6 + (9 * i));
     if (i == pos) {
       u8g2.print('[');
     } else {
@@ -58,26 +56,32 @@ void drawSelect(int pos) {
     u8g2.print('d');
     u8g2.print(types[i]);
     if (i == pos) {
-      u8g2.setCursor(95, 9 + (10 * i));
+      u8g2.setCursor(95, 6 + (9 * i));
       u8g2.print(']');
     }
   }
 }
 
 void drawDie(int type, int x, int y, int size, int num) {
-        if (type == 20) {
-        } else if (type == 12) {
+        if (type == 10 || type == 100 || type == 20) {
+          u8g2.setFont(u8g2_font_logisoso16_tr);
+        } else if (type == 12 || type == 10) {
           u8g2.setFont(u8g2_font_logisoso24_tr);
         } else {
           u8g2.setFont(u8g2_font_logisoso32_tr);
         }
   switch(type) {
     case 20:
-      u8g2.setFont(u8g2_font_logisoso16_tr);
       drawD20(x, y, size, num);
       break;
     case 12:
       drawD12(x, y, size, num);
+      break;
+    case 10:
+      drawD10(x, y, size, num, false);
+      break;
+    case 100:
+      drawD100(x, y, size, num);
       break;
     case 8:
       drawD8(x, y, size, num);
@@ -98,7 +102,10 @@ int roll(int type) {
       for (int c = size; c >= 0; c = c - speed) {
         u8g2.clearBuffer();
         //u8g2.drawCircle(c+1, 32, (c%2==0?i:j), U8G2_DRAW_ALL);
-        int num = random(type) + 1;
+        int num = random(type);
+        if (type != 10 && type != 100) {
+          num++;
+        }
         drawDie(type, x+c, y, size, num);
         u8g2.sendBuffer();
         //delay((c - size) * -1);
@@ -155,18 +162,18 @@ void drawD6(int x, int y, int size, int num) {
     u8g2.drawDisc(x + 3*(size/4), y + (size/2), dotsize, U8G2_DRAW_ALL);
   }
 }
- 
+
 void drawD4(int x, int y, int size, int num) {
   //draw outline
   drawTriLine(x, y, size);
-  
+
   //put number on
   u8g2.setFontPosCenter();
   char cstr[16];
   itoa(num, cstr, 10);
 
   int nw = numWidth(num);
-  
+
   u8g2.setCursor(x + ((size/2) - (nw/2)), 1 + (size*0.6));
   u8g2.print(num);
 }
@@ -228,22 +235,88 @@ void drawD12(int x, int y, int size, int num) {
   u8g2.drawLine(x4,y4,x12,y12);
   u8g2.drawLine(x6,y6,x13,y13);
   u8g2.drawLine(x8,y8,x14,y14);
-  
+
   //draw number
   int nw = numWidth(num);
   u8g2.setCursor(x + ((w/2) - (nw/2)), y + (size*0.55));
   u8g2.print(num);
 }
 
+void drawD100(int x, int y, int size, int num) {
+  int dec = floor(num/10);
+  int nom = num % 10;
+  drawD10(x, y, size, dec, true);
+  drawD10(x+(size*(0.25)+(x*0.5)), y + (size*0.3), size, nom, false);
+}
+
+void drawD10(int x, int y, int size, int num, bool hundo) {
+  //draw a 10 sided shape around
+  int side = size * 0.32495;
+  int w = size*0.9;
+  int x0 = x + w*0.5;
+  int y0 = y;
+  int x1 = x + w;
+  int y1 = y + size*0.4;
+  int x2 = x1;
+  int y2 = y + size*0.6;
+  int x3 = x0;
+  int y3 = y + size;
+  int x4 = x;
+  int y4 = y2;
+  int x5 = x4;
+  int y5 = y1;
+
+
+  u8g2.setDrawColor(0);
+  u8g2.drawTriangle(x0,y0, x5,y5, x1,y1);
+  u8g2.drawBox(x5, y5, x1-x5, y4-y5);
+  u8g2.drawTriangle(x2,y2, x3,y3, x4,y4);
+  u8g2.setDrawColor(1);
+
+  u8g2.drawLine(x0,y0,x1,y1);
+  u8g2.drawLine(x1,y1,x2,y2);
+  u8g2.drawLine(x2,y2,x3,y3);
+  u8g2.drawLine(x3,y3,x4,y4);
+  u8g2.drawLine(x4,y4,x5,y5);
+  u8g2.drawLine(x5,y5,x0,y0);
+
+  int x6 = x + w*0.2;
+  int y6 = y + size*0.5;
+  int x7 = x + w*0.8;
+  int y7 = y6;
+  int x8 = x0;
+  int y8 = y + size*0.7;
+
+
+  u8g2.drawLine(x0,y0,x6,y6);
+  u8g2.drawLine(x0,y0,x7,y7);
+  u8g2.drawLine(x6,y6,x8,y8);
+  u8g2.drawLine(x7,y7,x8,y8);
+  u8g2.drawLine(x6,y6,x4,y4);
+  u8g2.drawLine(x8,y8,x3,y3);
+  u8g2.drawLine(x7,y7,x2,y2);
+
+  //draw number
+  int nw = numWidth(num);
+  if (hundo) {
+    nw += numWidth(0);
+  }
+  u8g2.setCursor(x + ((w/2) - (nw/2)), y + (size*0.45));
+  u8g2.print(num);
+  if (hundo) {
+    u8g2.print(0);
+  }
+}
+
 void drawD20(int x, int y, int size, int num) {
-  
+
   int w = size*0.9;
   //draw number
   int nw = numWidth(num);
-  
+
   u8g2.setCursor(x + ((w/2) - (nw/2)), 2 + (w*0.6));
   u8g2.print(num);
-  
+
   //draw 6 sides
   int x0 = x + w/2;
   int y0 = y;
@@ -317,7 +390,7 @@ void drawD8(int x, int y, int size, int num) {
   u8g2.drawLine(x5,y5,x0,y0);
   //draw number
   int nw = numWidth(num);
-  
+
   u8g2.setCursor(x + ((w/2) - (nw/2)), 1 + (w*0.6));
   u8g2.print(num);
 }
@@ -366,4 +439,3 @@ void drawTriLine(int x, int y, int size) {
   u8g2.drawLine(x1,y1,x2,y2);
   u8g2.drawLine(x2,y2,x0,y0);
 }
-
