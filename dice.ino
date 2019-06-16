@@ -9,23 +9,28 @@ int type = 20;
 int speed = 4;
 int types[7] = {20,12,10,100,8,6,4};
 int rollType = 20;
+int time = 0;
+float pulseSpeed = 0.05;
 
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, 5, 2,0); // pin remapping with ESP8266 HW I2C
+
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, 19, 18,0); // pin remapping with ESP8266 HW I2C
 
 void setup(void) {
+  Wire.setSDA(17);
+  Wire.setSCL(16);
   Serial.begin(9600);
   u8g2.begin();
   randomSeed(analogRead(0));
   u8g2.setFontPosCenter();
   pinMode(13, OUTPUT);
-  pinMode(2, INPUT_PULLUP);
+  pinMode(21, INPUT_PULLUP);
 }
 
 void loop(void) {
   int ti = getTypeIndex();
   type = types[ti];
   u8g2.clearBuffer();
-  if (digitalRead(2) == HIGH) {
+  if (digitalRead(21) == HIGH) {
     digitalWrite(13, HIGH);
     rollType = type;
     u8g2.clearBuffer();
@@ -34,18 +39,28 @@ void loop(void) {
   } else {
     digitalWrite(13, LOW);
   }
-  drawSelect(ti);
-  drawDie(rollType, 0, 0, 64, result);
+  if (result) {
+    drawDie(rollType, 0, 0, 64, result);
+    drawSelect(ti);
+    u8g2.sendBuffer();
+  } else {
+    splash();
+  }
+  time++;
+}
+
+void splash() {
+  u8g2.drawDisc(64, 32, 16 + sin(time * pulseSpeed) * 16);
   u8g2.sendBuffer();
 }
 
 int getTypeIndex() {
-  int i = analogRead(20);
-  return map(i, 0, 1024, 0, 6);
+  int i = analogRead(15)* -1;
+  return map(i+1024, 0, 1024, 0, 6);
 }
 
 void drawSelect(int pos) {
-  u8g2.setFont(u8g2_font_t0_11_tr);
+  u8g2.setFont(u8g2_font_profont12_tf);
   for (int i = 0; i <= 6; i++) {
     u8g2.setCursor(70, 6 + (9 * i));
     if (i == pos) {
@@ -56,20 +71,20 @@ void drawSelect(int pos) {
     u8g2.print('d');
     u8g2.print(types[i]);
     if (i == pos) {
-      u8g2.setCursor(95, 6 + (9 * i));
+      u8g2.setCursor(100, 6 + (9 * i));
       u8g2.print(']');
     }
   }
 }
 
 void drawDie(int type, int x, int y, int size, int num) {
-        if (type == 10 || type == 100 || type == 20) {
-          u8g2.setFont(u8g2_font_logisoso16_tr);
-        } else if (type == 12 || type == 10) {
-          u8g2.setFont(u8g2_font_logisoso24_tr);
-        } else {
-          u8g2.setFont(u8g2_font_logisoso32_tr);
-        }
+  if (type == 10 || type == 100 || type == 20) {
+    u8g2.setFont(u8g2_font_logisoso16_tr);
+  } else if (type == 12 || type == 10) {
+    u8g2.setFont(u8g2_font_logisoso24_tr);
+  } else {
+    u8g2.setFont(u8g2_font_logisoso32_tr);
+  }
   switch(type) {
     case 20:
       drawD20(x, y, size, num);
@@ -96,47 +111,45 @@ void drawDie(int type, int x, int y, int size, int num) {
 }
 
 int roll(int type) {
-      int x = 0;
-      int y = 0;
-      int size = 64;
-      for (int c = size; c >= 0; c = c - speed) {
-        u8g2.clearBuffer();
-        //u8g2.drawCircle(c+1, 32, (c%2==0?i:j), U8G2_DRAW_ALL);
-        int num = random(type);
-        if (type != 10 && type != 100) {
-          num++;
-        }
-        drawDie(type, x+c, y, size, num);
-        u8g2.sendBuffer();
-        //delay((c - size) * -1);
-        delay(1000/60);
-        if (digitalRead(2) == HIGH) {
-          c += speed;
-        }
-        if (c == 0) {
-          delay(1000);
-          Serial.print(num);
-          Serial.print(" ");
-          for (int f = 0; f<4;f++) {
-//            u8g2.clearBuffer();
-//            u8g2.sendBuffer();
-//            delay(200);
-            u8g2.clearBuffer();
-            drawDie(type, x+c, y, size, num);
-            if (f == 0) {
-                u8g2.setFont(u8g2_font_logisoso24_tr);
-            } else {
-                u8g2.setFont(u8g2_font_logisoso16_tr);
-            }
-            u8g2.sendBuffer();
-            delay(50);
-          }
-          return num;
-        }
+  int x = 0;
+  int y = 0;
+  int size = 64;
+  for (int c = size; c >= 0; c = c - speed) {
+    u8g2.clearBuffer();
+    int num = random(type);
+    // num = 19;
+    if (type != 10 && type != 100) {
+      num++;
     }
-    i++;
-    j++;
+    drawDie(type, x+c, y, size, num);
     u8g2.sendBuffer();
+    delay(1000/60);
+    if (digitalRead(2) == HIGH) {
+      c += speed;
+    }
+    if (c == 0) {
+      Serial.print(num);
+      Serial.print(" ");
+      if (type == 20 && num == 20) {
+        // crit
+        crit();
+      }
+      return num;
+    }
+  }
+  i++;
+  j++;
+  u8g2.sendBuffer();
+}
+
+void crit() {
+  for (int i = 0; i <= 128; i = i + speed) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_logisoso50_tr);
+    u8g2.setCursor(i, 42);
+    u8g2.print(20);
+    u8g2.sendBuffer();
+  }
 }
 
 void drawD6(int x, int y, int size, int num) {
@@ -396,7 +409,6 @@ void drawD8(int x, int y, int size, int num) {
 }
 
 int numWidth(int num) {
-
   //todo if it starts with 1 add a bit
   char cstr[3];
   itoa(num, cstr, 10);
