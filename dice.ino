@@ -16,8 +16,8 @@ float pulseSpeed = 0.05;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, 19, 18,0); // pin remapping with ESP8266 HW I2C
 
 void setup(void) {
-  Wire.setSDA(17);
-  Wire.setSCL(16);
+  Wire.setSDA(19);
+  Wire.setSCL(18);
   Serial.begin(9600);
   u8g2.begin();
   randomSeed(analogRead(0));
@@ -50,7 +50,12 @@ void loop(void) {
 }
 
 void splash() {
-  u8g2.drawDisc(64, 32, 16 + sin(time * pulseSpeed) * 16);
+  int r = 16 + sin(time * pulseSpeed) * 16;
+  int r2 = r * ((sin(time * (pulseSpeed*0.55)) + 2)/3);
+  u8g2.drawDisc(64, 32, r);
+  u8g2.setDrawColor(0);
+  u8g2.drawDisc(64, 32, r2);
+  u8g2.setDrawColor(1);
   u8g2.sendBuffer();
 }
 
@@ -155,7 +160,7 @@ void crit() {
 void drawD6(int x, int y, int size, int num) {
   int dotsize = size/15;
   u8g2.drawFrame(x, y, size, size);
-  if (num == 1 || num == 3 || num == 5) {
+  if (num % 2) {
     //center
     u8g2.drawDisc(x + (size/2), y + (size/2), dotsize, U8G2_DRAW_ALL);
   }
