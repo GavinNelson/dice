@@ -9,49 +9,93 @@ int type = 20;
 int speed = 4;
 int types[7] = {20,12,10,100,8,6,4};
 int rollType = 20;
-int time = 0;
+int timeTime = 0;
 float pulseSpeed = 0.05;
 
+// todo - make each dice a class with an initialize (set all points) and draw function
+// initialize the dice when selected
 
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, 19, 18,0); // pin remapping with ESP8266 HW I2C
+// todo - add advantage and disadvantage d20 steps
+
+// todo - add pattern to critbuzz
+
+// todo - 
+
+class Dice {
+  int size;
+  public:
+    Dice(int s) {
+      size = s;
+    }
+    void roll();    
+};
+
+// HIGH = trigger when open
+bool TRIGGER_POLARITY = LOW;
+
+int SPI_CLOCK_PIN = 13;
+int SPI_DATA_PIN = 12;
+int SPI_CS_PIN = 9;
+int SPI_DC_PIN = 10;
+int SPI_RESET_PIN = 11;
+
+int TRIGGER_PIN = 8;
+int SELECT_PIN = 7;
+int SELECT_RANGE = 4095;
+
+int VIB_PIN = 6;
+
+int LED_PIN = 48;
+
+//U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, 19, 18,0); // pin remapping with ESP8266 HW I2C
+
+// little 7 pin
+//U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ SPI_CLOCK_PIN, /* data=*/ SPI_DATA_PIN, /* cs=*/ SPI_CS_PIN, /* dc=*/ SPI_DC_PIN, /* reset=*/ SPI_RESET_PIN);
+
+// big 7 pin
+U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ SPI_CLOCK_PIN, /* data=*/ SPI_DATA_PIN, /* cs=*/ SPI_CS_PIN, /* dc=*/ SPI_DC_PIN, /* reset=*/ SPI_RESET_PIN);
+
+int SIZE = 64;
+
 
 void setup(void) {
-  Wire.setSDA(19);
-  Wire.setSCL(18);
-  Serial.begin(9600);
+//  Wire.setSDA(19);
+//  Wire.setSCL(18);
+//  Serial.begin(9600);
   u8g2.begin();
   randomSeed(analogRead(0));
   u8g2.setFontPosCenter();
-  pinMode(13, OUTPUT);
-  pinMode(21, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(VIB_PIN, OUTPUT);
+  pinMode(TRIGGER_PIN, INPUT_PULLUP);
 }
 
 void loop(void) {
   int ti = getTypeIndex();
   type = types[ti];
   u8g2.clearBuffer();
-  if (digitalRead(21) == HIGH) {
-    digitalWrite(13, HIGH);
+  if (digitalRead(TRIGGER_PIN) == TRIGGER_POLARITY) {
+    digitalWrite(LED_PIN, HIGH);
     rollType = type;
     u8g2.clearBuffer();
     result = roll(type);
     u8g2.sendBuffer();
   } else {
-    digitalWrite(13, LOW);
+    digitalWrite(LED_PIN, LOW);
   }
   if (result) {
-    drawDie(rollType, 0, 0, 64, result);
+    drawDie(rollType, 0, 0, SIZE, result);
     drawSelect(ti);
     u8g2.sendBuffer();
   } else {
     splash();
   }
-  time++;
+  timeTime++;
 }
 
 void splash() {
-  int r = 16 + sin(time * pulseSpeed) * 16;
-  int r2 = r * ((sin(time * (pulseSpeed*0.55)) + 2)/3);
+  int r = 16 + sin(timeTime * pulseSpeed) * 16;
+  int r2 = r * ((sin(timeTime * (pulseSpeed*0.55)) + 2)/3);
   u8g2.drawDisc(64, 32, r);
   u8g2.setDrawColor(0);
   u8g2.drawDisc(64, 32, r2);
@@ -60,8 +104,8 @@ void splash() {
 }
 
 int getTypeIndex() {
-  int i = analogRead(15)* -1;
-  return map(i+1024, 0, 1024, 0, 6);
+  int i = analogRead(SELECT_PIN)* -1;
+  return map(i+SELECT_RANGE, 0, SELECT_RANGE, 0, 6);
 }
 
 void drawSelect(int pos) {
@@ -118,25 +162,23 @@ void drawDie(int type, int x, int y, int size, int num) {
 int roll(int type) {
   int x = 0;
   int y = 0;
-  int size = 64;
-  for (int c = size; c >= 0; c = c - speed) {
+  for (int c = SIZE; c >= 0; c = c - speed) {
     u8g2.clearBuffer();
     int num = random(type);
     // num = 19;
     if (type != 10 && type != 100) {
       num++;
     }
-    drawDie(type, x+c, y, size, num);
+    drawDie(type, x+c, y, SIZE, num);
     u8g2.sendBuffer();
     delay(1000/60);
     if (digitalRead(2) == HIGH) {
       c += speed;
     }
     if (c == 0) {
-      Serial.print(num);
-      Serial.print(" ");
+//      Serial.print(num);
+//      Serial.print(" ");
       if (type == 20 && num == 20) {
-        // crit
         crit();
       }
       return num;
@@ -148,6 +190,7 @@ int roll(int type) {
 }
 
 void crit() {
+  digitalWrite(VIB_PIN, HIGH);
   for (int i = 0; i <= 128; i = i + speed) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_logisoso50_tr);
@@ -155,29 +198,33 @@ void crit() {
     u8g2.print(20);
     u8g2.sendBuffer();
   }
+  digitalWrite(VIB_PIN, LOW);
 }
 
 void drawD6(int x, int y, int size, int num) {
   int dotsize = size/15;
+  int quart = size/4;
+  int threequart = 3*quart;
+  int half = size/2;
   u8g2.drawFrame(x, y, size, size);
   if (num % 2) {
     //center
-    u8g2.drawDisc(x + (size/2), y + (size/2), dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + half, y + half, dotsize, U8G2_DRAW_ALL);
   }
   if (num > 1) {
     //top left + bottom right
-    u8g2.drawDisc(x + (size/4), y + (size/4), dotsize, U8G2_DRAW_ALL);
-    u8g2.drawDisc(x + 3*(size/4), y + 3*(size/4), dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + quart, y + quart, dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + threequart, y + threequart, dotsize, U8G2_DRAW_ALL);
   }
   if (num > 3) {
     //top right + bottom left
-    u8g2.drawDisc(x + 3*(size/4), y + (size/4), dotsize, U8G2_DRAW_ALL);
-    u8g2.drawDisc(x + (size/4), y + 3*(size/4), dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + threequart, y + quart, dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + quart, y + threequart, dotsize, U8G2_DRAW_ALL);
   }
   if (num == 6) {
     //left and right
-    u8g2.drawDisc(x + (size/4), y + (size/2), dotsize, U8G2_DRAW_ALL);
-    u8g2.drawDisc(x + 3*(size/4), y + (size/2), dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + quart, y + half, dotsize, U8G2_DRAW_ALL);
+    u8g2.drawDisc(x + threequart, y + half, dotsize, U8G2_DRAW_ALL);
   }
 }
 
