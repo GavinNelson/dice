@@ -1,8 +1,6 @@
 #include <U8g2lib.h>
-#include <Wire.h>
+// #include <D6.h>
 
-int i = 2;
-int j = 16;
 int c = 10;
 int result = 0;
 int type = 20;
@@ -21,15 +19,6 @@ float pulseSpeed = 0.05;
 
 // todo - 
 
-class Dice {
-  int size;
-  public:
-    Dice(int s) {
-      size = s;
-    }
-    void roll();    
-};
-
 // HIGH = trigger when open
 bool TRIGGER_POLARITY = LOW;
 
@@ -47,15 +36,33 @@ int VIB_PIN = 6;
 
 int LED_PIN = 48;
 
-//U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, 19, 18,0); // pin remapping with ESP8266 HW I2C
+//old 4 pin
+//U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, 19, 18,0);
+// pin remapping with ESP8266 HW I2C
 
 // little 7 pin
-//U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ SPI_CLOCK_PIN, /* data=*/ SPI_DATA_PIN, /* cs=*/ SPI_CS_PIN, /* dc=*/ SPI_DC_PIN, /* reset=*/ SPI_RESET_PIN);
+//U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI u8g2(
+//   U8G2_R0,
+//   SPI_CLOCK_PIN,
+//   SPI_DATA_PIN,
+//   SPI_CS_PIN,
+//   SPI_DC_PIN,
+//   SPI_RESET_PIN
+// );
 
 // big 7 pin
-U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ SPI_CLOCK_PIN, /* data=*/ SPI_DATA_PIN, /* cs=*/ SPI_CS_PIN, /* dc=*/ SPI_DC_PIN, /* reset=*/ SPI_RESET_PIN);
+U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(
+  U8G2_R0,
+  SPI_CLOCK_PIN,
+  SPI_DATA_PIN,
+  SPI_CS_PIN,
+  SPI_DC_PIN,
+  SPI_RESET_PIN
+);
 
 int SIZE = 64;
+
+// D6 d6(SIZE);
 
 
 void setup(void) {
@@ -75,10 +82,12 @@ void loop(void) {
   type = types[ti];
   u8g2.clearBuffer();
   if (digitalRead(TRIGGER_PIN) == TRIGGER_POLARITY) {
+    // U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2ref = *u8g2;
     digitalWrite(LED_PIN, HIGH);
     rollType = type;
     u8g2.clearBuffer();
     result = roll(type);
+    // result = d6.roll(u8g2ref);
     u8g2.sendBuffer();
   } else {
     digitalWrite(LED_PIN, LOW);
@@ -172,21 +181,13 @@ int roll(int type) {
     drawDie(type, x+c, y, SIZE, num);
     u8g2.sendBuffer();
     delay(1000/60);
-    if (digitalRead(2) == HIGH) {
-      c += speed;
-    }
     if (c == 0) {
-//      Serial.print(num);
-//      Serial.print(" ");
       if (type == 20 && num == 20) {
         crit();
       }
       return num;
     }
   }
-  i++;
-  j++;
-  u8g2.sendBuffer();
 }
 
 void crit() {
